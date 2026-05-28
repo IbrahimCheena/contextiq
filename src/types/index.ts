@@ -6,6 +6,20 @@ export interface Chunk {
   filename: string;
 }
 
+export interface Source {
+  id: string;
+  filename: string;
+  chunk_index: number;
+  content: string;
+  similarity: number;
+}
+
+export interface Message {
+  role: 'user' | 'assistant';
+  content: string;
+  sources?: Source[];
+}
+
 export interface UploadResponse {
   success: boolean;
   filename: string;

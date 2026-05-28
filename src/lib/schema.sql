@@ -15,15 +15,18 @@ create table if not exists documents (
   created_at  timestamptz not null default now()
 );
 
--- 3. IVFFlat index for fast approximate cosine-similarity search.
---    lists = 100 is a safe default for datasets up to ~1 M rows.
---    Re-run ANALYZE after bulk-loading data so the planner uses the index.
---    NOTE: pgvector requires at least one row to exist before the index can
---    be probed; the planner falls back to a sequential scan on empty tables.
-create index if not exists documents_embedding_idx
-  on documents
-  using ivfflat (embedding vector_cosine_ops)
-  with (lists = 100);
+-- 3. No ivfflat index for small datasets.
+--    Without an index, pgvector performs an exact sequential scan which is
+--    correct and fast for up to ~10 k rows.
+--
+--    Add an ivfflat index only after you have enough data:
+--      CREATE INDEX documents_embedding_idx ON documents
+--        USING ivfflat (embedding vector_cosine_ops)
+--        WITH (lists = <sqrt(row_count)>);
+--      ANALYZE documents;
+--
+--    If you already created the index on an empty table, drop it first:
+--      DROP INDEX IF EXISTS documents_embedding_idx;
 
 -- 4. match_documents — semantic similarity search used in Phase 3.
 --    Returns the top `match_count` chunks ordered by cosine similarity.
