@@ -11,6 +11,14 @@ function getExtension(filename: string): string {
   return dot === -1 ? '' : filename.slice(dot).toLowerCase();
 }
 
+// Collapse duplicate consecutive extensions (e.g. "test-doc.txt.txt" → "test-doc.txt").
+// This happens on Windows when file extensions are hidden and a user saves "test-doc.txt",
+// the actual filename on disk becomes "test-doc.txt.txt".
+function sanitizeFilename(name: string): string {
+  const base = name.replace(/\\/g, '/').split('/').pop() ?? name;
+  return base.replace(/(\.[^.]+)\1$/i, '$1');
+}
+
 function errorResponse(
   message: string,
   status: number,
@@ -70,12 +78,14 @@ export async function POST(request: NextRequest): Promise<NextResponse<UploadRes
     return errorResponse('Failed to parse file.', 500, file.name);
   }
 
+  const filename = sanitizeFilename(file.name);
+
   const trimmed = text.trim();
   if (!trimmed) {
     return NextResponse.json<UploadResponse>(
       {
         success: false,
-        filename: file.name,
+        filename,
         totalChunks: 0,
         totalEmbedded: 0,
         chunks: [],
@@ -86,17 +96,17 @@ export async function POST(request: NextRequest): Promise<NextResponse<UploadRes
   }
 
   // ── Chunk ──────────────────────────────────────────────────────────────────
-  const chunks = chunkText(trimmed, file.name);
+  const chunks = chunkText(trimmed, filename);
 
   // ── Embed + store ──────────────────────────────────────────────────────────
-  const embedResult = await embedChunks(chunks, file.name);
+  const embedResult = await embedChunks(chunks, filename);
 
   if (!embedResult.success) {
     console.error('[upload] embedding error:', embedResult.error);
     return NextResponse.json<UploadResponse>(
       {
         success: false,
-        filename: file.name,
+        filename,
         totalChunks: chunks.length,
         totalEmbedded: embedResult.totalEmbedded,
         chunks,
@@ -108,7 +118,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<UploadRes
 
   return NextResponse.json<UploadResponse>({
     success: true,
-    filename: file.name,
+    filename,
     totalChunks: chunks.length,
     totalEmbedded: embedResult.totalEmbedded,
     chunks,

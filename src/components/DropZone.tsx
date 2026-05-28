@@ -67,7 +67,6 @@ export default function DropZone({ onFileSelect, appState }: DropZoneProps) {
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
       if (file) handleFile(file);
-      // reset so the same file can be re-selected
       e.target.value = '';
     },
     [handleFile]
@@ -90,13 +89,13 @@ export default function DropZone({ onFileSelect, appState }: DropZoneProps) {
         onDragOver={handleDragOver}
         onDrop={handleDrop}
         className={[
-          'relative border-2 border-dashed rounded-xl p-12 text-center transition-all duration-200 select-none outline-none',
+          'relative border-2 border-dashed rounded-2xl p-8 text-center transition-all duration-200 select-none outline-none',
           isDragging
-            ? 'border-violet-400 bg-violet-500/10 scale-[1.01]'
-            : 'border-zinc-700 hover:border-zinc-500 hover:bg-zinc-800/40',
+            ? 'border-violet-500/70 bg-violet-500/5 scale-[1.01]'
+            : 'border-zinc-800 hover:border-zinc-600 hover:bg-zinc-800/30',
           isDisabled
             ? 'opacity-50 cursor-not-allowed pointer-events-none'
-            : 'cursor-pointer focus-visible:ring-2 focus-visible:ring-violet-500',
+            : 'cursor-pointer focus-visible:ring-2 focus-visible:ring-violet-500/50',
         ].join(' ')}
       >
         <input
@@ -109,15 +108,17 @@ export default function DropZone({ onFileSelect, appState }: DropZoneProps) {
           aria-hidden
         />
 
-        <div className="flex flex-col items-center gap-4 pointer-events-none">
+        <div className="flex flex-col items-center gap-3 pointer-events-none">
           <div
-            className={`w-16 h-16 rounded-full flex items-center justify-center transition-colors ${
-              isDragging ? 'bg-violet-500/20' : 'bg-zinc-800'
+            className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all duration-200 ${
+              isDragging
+                ? 'bg-violet-500/20 shadow-lg shadow-violet-500/10'
+                : 'bg-zinc-800/80'
             }`}
           >
             <svg
-              className={`w-8 h-8 transition-colors ${
-                isDragging ? 'text-violet-400' : 'text-zinc-400'
+              className={`w-6 h-6 transition-colors ${
+                isDragging ? 'text-violet-400' : 'text-zinc-500'
               }`}
               fill="none"
               viewBox="0 0 24 24"
@@ -134,18 +135,16 @@ export default function DropZone({ onFileSelect, appState }: DropZoneProps) {
           </div>
 
           <div>
-            <p className="text-zinc-200 font-medium text-lg">
-              {isDragging ? 'Release to upload' : 'Drag & drop your document'}
+            <p className="text-zinc-300 font-medium">
+              {isDragging ? 'Release to upload' : 'Drop your document here'}
             </p>
-            <p className="text-zinc-500 text-sm mt-1">
+            <p className="text-zinc-600 text-sm mt-0.5">
               or{' '}
-              <span className="text-violet-400 group-hover:text-violet-300">
-                click to browse
-              </span>
+              <span className="text-violet-400">browse files</span>
             </p>
           </div>
 
-          <p className="text-zinc-600 text-xs">PDF or TXT · max 10 MB</p>
+          <p className="text-zinc-700 text-xs">PDF or TXT · max 10 MB</p>
         </div>
       </div>
 

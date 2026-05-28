@@ -36,6 +36,15 @@ export async function embedChunks(
     return { success: false, totalEmbedded: 0, error: message };
   }
 
+  // Delete stale rows for this filename so re-uploads don't stack duplicates
+  const { error: deleteError } = await supabase
+    .from('documents')
+    .delete()
+    .eq('filename', filename);
+  if (deleteError) {
+    return { success: false, totalEmbedded: 0, error: `Failed to clear old chunks: ${deleteError.message}` };
+  }
+
   let totalEmbedded = 0;
 
   for (let i = 0; i < chunks.length; i += BATCH_SIZE) {
