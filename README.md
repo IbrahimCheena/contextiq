@@ -1,47 +1,104 @@
 # ContextIQ — AI-Powered RAG Document Assistant
 
-> Your documents. Your answers. Cited.
+> Upload any document. Ask anything. Get cited answers — powered by GPT-4o.
 
-**Live Demo:** [contextiq-henna.vercel.app](https://contextiq-henna.vercel.app)
-**Repository:** [github.com/IbrahimCheena/contextiq](https://github.com/IbrahimCheena/contextiq)
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-contextiq--henna.vercel.app-6d28d9?style=for-the-badge&logo=vercel&logoColor=white)](https://contextiq-henna.vercel.app)
+[![Next.js](https://img.shields.io/badge/Next.js%2014-black?style=for-the-badge&logo=next.js)](https://nextjs.org)
+[![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://typescriptlang.org)
+[![Supabase](https://img.shields.io/badge/Supabase-3ECF8E?style=for-the-badge&logo=supabase&logoColor=white)](https://supabase.com)
+[![OpenAI](https://img.shields.io/badge/OpenAI-GPT--4o-412991?style=for-the-badge&logo=openai&logoColor=white)](https://openai.com)
 
 ---
 
-## What It Does
+## Overview
 
-ContextIQ lets you upload any PDF or text document and ask natural language questions about it. Instead of reading the whole thing, just ask — and get accurate, cited answers powered by GPT-4o.
+ContextIQ is a full-stack Retrieval-Augmented Generation (RAG) application. Users upload PDF or text documents, ask natural language questions, and receive streamed answers that cite the exact source passages used — no hallucinations, no guesswork.
 
-- Upload PDF or TXT documents
-- Automatically chunks and embeds content using OpenAI embeddings
-- Semantic vector search finds the most relevant passages
-- GPT-4o generates accurate answers with cited sources
-- Interactive source cards show exactly which passages were used
-- Dark and light mode support
+The project was built end-to-end from scratch: document ingestion pipeline, vector embedding, semantic search with pgvector, streaming LLM responses, and a polished React UI with dark/light mode.
+
+**[→ Try the live demo](https://contextiq-henna.vercel.app)**
+
+---
+
+## Features
+
+- **Drag-and-drop upload** — PDF and TXT support, up to 10 MB
+- **Semantic chunking** — Documents split into 500-token segments with 50-token overlap to preserve context at boundaries
+- **Vector embeddings** — Every chunk embedded with `text-embedding-3-small` (1536 dimensions) and stored in Supabase pgvector
+- **Cosine similarity search** — Questions embedded at query time and matched against stored vectors; top 5 chunks retrieved
+- **Streaming answers** — GPT-4o response streams token-by-token via Server-Sent Events; no waiting for the full response
+- **Interactive source cards** — Each answer links back to the specific chunks used; cards expand to show full passage text, colour-coded by match confidence
+- **Re-upload safety** — Existing chunks for a document are deleted before re-embedding, preventing stale duplicates
+- **Dark / light mode** — Persisted to `localStorage` via `next-themes`
+- **Mobile responsive** — Panels stack on small screens; input bar pinned to bottom
 
 ---
 
 ## Tech Stack
 
-| Layer | Technology |
-|-------|-----------|
-| Frontend | Next.js 14, TypeScript, TailwindCSS |
-| Backend | Next.js API Routes, Node.js |
-| AI | OpenAI text-embedding-3-small, GPT-4o |
-| Database | Supabase PostgreSQL + pgvector |
-| Deployment | Vercel |
+| Layer | Technology | Notes |
+|---|---|---|
+| Framework | Next.js 14 (App Router) | Server components, API routes, streaming |
+| Language | TypeScript (strict mode) | No `any` except targeted Supabase workarounds |
+| Styling | TailwindCSS v4 | Class-based dark mode, custom keyframe animations |
+| AI — Embeddings | OpenAI `text-embedding-3-small` | 1536-dim vectors, batched 20 at a time |
+| AI — Generation | OpenAI `gpt-4o` | Streaming via `ReadableStream` + SSE |
+| Database | Supabase (PostgreSQL + pgvector) | `match_documents` RPC for similarity search |
+| PDF Parsing | `pdf-parse` | Server-only via `serverExternalPackages` |
+| Theme | `next-themes` | Persisted, SSR-safe with `suppressHydrationWarning` |
+| Deployment | Vercel | Zero-config, edge-compatible |
 
 ---
 
-## How It Works
+## Architecture
 
-1. **Upload** — User uploads a PDF or TXT file
-2. **Chunk & Embed** — Document is split into 500-token chunks, each embedded via OpenAI into a 1536-dimension vector and stored in Supabase pgvector
-3. **Semantic Search** — User question is embedded and compared against all stored vectors using cosine similarity
-4. **Generate** — Top matching chunks are passed to GPT-4o as context, which streams back a cited answer
+```
+┌─────────────────────────────────────────────────┐
+│                   Browser                        │
+│  ┌────────────────┐    ┌───────────────────────┐ │
+│  │  Upload Panel  │    │      Chat Panel        │ │
+│  │  (DropZone)    │    │  (streaming SSE reader)│ │
+│  └───────┬────────┘    └──────────┬────────────┘ │
+└──────────┼──────────────────────┼───────────────┘
+           │ POST /api/upload      │ POST /api/query
+           ▼                       ▼
+┌─────────────────────────────────────────────────┐
+│              Next.js API Routes                  │
+│                                                  │
+│  /api/upload                /api/query           │
+│  1. Parse PDF/TXT           1. Embed question    │
+│  2. Chunk (500t / 50t)      2. match_documents() │
+│  3. Embed chunks (×20)      3. Build GPT prompt  │
+│  4. Upsert to Supabase      4. Stream GPT-4o     │
+└──────────────┬──────────────────────┬────────────┘
+               │                      │
+               ▼                      ▼
+     ┌──────────────────┐   ┌──────────────────┐
+     │    Supabase DB    │   │    OpenAI API    │
+     │  pgvector store   │   │  Embeddings +    │
+     │  match_documents  │   │  GPT-4o stream   │
+     └──────────────────┘   └──────────────────┘
+```
+
+---
+
+## Engineering Decisions
+
+**Chunking strategy** — Word-count approximation (~1.3 tokens/word) avoids a tokeniser dependency while producing consistent ~500-token chunks. Overlap prevents answers from straddling chunk boundaries.
+
+**Streaming architecture** — The `/api/query` route opens a `ReadableStream`, emits sources as the first SSE event (so the UI can display them immediately), then pipes the GPT-4o stream token by token. The client reads chunks with `getReader()` and updates React state incrementally.
+
+**ivfflat index trade-off** — The schema intentionally omits an ivfflat index for small datasets. An ivfflat index built on an empty table produces undefined cluster centroids and silently returns zero results. For datasets under ~10k rows, PostgreSQL's exact sequential scan is both correct and fast. The `/api/query` route also includes a JS cosine-similarity fallback that activates if the SQL function returns zero results despite rows existing.
+
+**Supabase generic type workaround** — Passing a hand-written `Database` interface to `createClient<Database>` caused TypeScript to collapse the `Insert` type to `never` when `Row` referenced an external interface (a supabase-js generic resolution bug). The fix is to inline all field types directly inside the `Database` interface and derive external types from it, rather than the reverse.
+
+**Filename sanitisation** — Windows hides file extensions by default; uploading `report.txt` produces a file named `report.txt.txt` on disk. A regex `(\.[^.]+)\1$` collapses consecutive duplicate extensions before the filename is stored.
 
 ---
 
 ## Local Setup
+
+**Prerequisites:** Node.js 18+, a Supabase project, an OpenAI API key with GPT-4o access.
 
 ```bash
 git clone https://github.com/IbrahimCheena/contextiq.git
@@ -49,28 +106,63 @@ cd contextiq
 npm install
 ```
 
-Create a `.env.local` file:
+Create `.env.local`:
 
 ```env
-NEXT_PUBLIC_SUPABASE_URL=your-supabase-project-url
-SUPABASE_SERVICE_KEY=your-supabase-service-role-key
-OPENAI_API_KEY=your-openai-api-key
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_SERVICE_KEY=your-service-role-key
+OPENAI_API_KEY=sk-...
 ```
 
-Run the Supabase schema from `src/lib/schema.sql` in your Supabase SQL editor, then:
+Run the schema in your Supabase SQL editor:
+
+```bash
+# Copy the contents of src/lib/schema.sql and paste into the Supabase SQL editor
+```
+
+Start the dev server:
 
 ```bash
 npm run dev
+# → http://localhost:3000
 ```
 
 ---
 
 ## Deployment
 
-Deployed on Vercel. Add the three environment variables above in your Vercel project settings before deploying.
+Deployed to Vercel. Set the three environment variables in your Vercel project settings, then push to `main`.
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/IbrahimCheena/contextiq)
 
 ---
 
-> Built as a portfolio project demonstrating production RAG architecture with semantic search, vector embeddings, and streaming LLM responses.
+## Project Structure
+
+```
+src/
+├── app/
+│   ├── api/
+│   │   ├── upload/route.ts   # PDF parse → chunk → embed → store
+│   │   └── query/route.ts    # Embed question → vector search → stream GPT-4o
+│   ├── globals.css           # Tailwind v4, dark mode variant, keyframe animations
+│   ├── layout.tsx            # ThemeProvider, font setup
+│   └── page.tsx              # Two-panel layout (upload + chat)
+├── components/
+│   ├── ChatWindow.tsx        # Streaming chat, source cards, SSE reader
+│   ├── DropZone.tsx          # Drag-and-drop, file validation
+│   ├── ThemeProvider.tsx     # next-themes wrapper
+│   ├── ThemeToggle.tsx       # Sun/moon toggle button
+│   └── UploadStatus.tsx      # Upload progress indicator
+├── lib/
+│   ├── chunker.ts            # 500-token word-count chunker with overlap
+│   ├── embeddings.ts         # OpenAI batch embedding + Supabase upsert
+│   ├── schema.sql            # PostgreSQL schema + match_documents RPC
+│   └── supabase.ts           # Supabase client
+└── types/
+    └── index.ts              # Chunk, Message, Source, AppState, UploadResponse
+```
+
+---
+
+*Built by [Ibrahim Cheena](https://github.com/IbrahimCheena) — demonstrating production RAG architecture: document ingestion, vector embeddings, semantic search, and streaming LLM responses.*
