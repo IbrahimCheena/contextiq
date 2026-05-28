@@ -1,8 +1,21 @@
 @import "tailwindcss";
 
+/* Class-based dark mode — next-themes sets class="dark" on <html> */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ── Color tokens ── */
 :root {
-  --background: #09090b;
-  --foreground: #f4f4f5;
+  --background: #f8fafc;   /* slate-50  */
+  --foreground: #0f172a;   /* slate-900 */
+  --shimmer-bg: #e2e8f0;   /* slate-200 */
+  --shimmer-hl: #f8fafc;   /* slate-50  */
+}
+
+.dark {
+  --background: #09090b;   /* zinc-950 */
+  --foreground: #f4f4f5;   /* zinc-100 */
+  --shimmer-bg: #27272a;   /* zinc-800 */
+  --shimmer-hl: #3f3f46;   /* zinc-700 */
 }
 
 body {
@@ -13,13 +26,50 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Animated gradient for hero text */
-@keyframes shimmer {
+/* ── Keyframes ── */
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes shimmer-slide {
+  from { background-position: -200% 0; }
+  to   { background-position:  200% 0; }
+}
+
+@keyframes gradient-shift {
   0%, 100% { background-position: 0% 50%; }
   50%       { background-position: 100% 50%; }
 }
 
+/* ── Utility classes ── */
+
+.animate-fade-up {
+  animation: fade-up 0.25s ease-out both;
+}
+
+.animate-fade-in {
+  animation: fade-in 0.2s ease-out both;
+}
+
 .animate-gradient {
   background-size: 200% auto;
-  animation: shimmer 5s ease-in-out infinite;
+  animation: gradient-shift 5s ease-in-out infinite;
+}
+
+/* Skeleton shimmer — colors adapt to current theme via CSS vars */
+.animate-shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--shimmer-bg) 25%,
+    var(--shimmer-hl) 50%,
+    var(--shimmer-bg) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer-slide 1.5s ease-in-out infinite;
 }

@@ -89,10 +89,22 @@ export default function DropZone({ onFileSelect, appState }: DropZoneProps) {
         onDragOver={handleDragOver}
         onDrop={handleDrop}
         className={[
+          // base
           'relative border-2 border-dashed rounded-2xl p-8 text-center transition-all duration-200 select-none outline-none',
+          // drag state — glow ring + bg shift (acts as pulse replacement)
           isDragging
-            ? 'border-violet-500/70 bg-violet-500/5 scale-[1.01]'
-            : 'border-zinc-800 hover:border-zinc-600 hover:bg-zinc-800/30',
+            ? [
+                'border-violet-500 dark:border-violet-500',
+                'bg-violet-50 dark:bg-violet-500/5',
+                'shadow-[0_0_0_4px_rgba(139,92,246,0.12)]',
+                'scale-[1.01]',
+              ].join(' ')
+            : [
+                'border-slate-200 dark:border-zinc-800',
+                'hover:border-slate-300 dark:hover:border-zinc-600',
+                'hover:bg-slate-50/80 dark:hover:bg-zinc-800/20',
+              ].join(' '),
+          // disabled
           isDisabled
             ? 'opacity-50 cursor-not-allowed pointer-events-none'
             : 'cursor-pointer focus-visible:ring-2 focus-visible:ring-violet-500/50',
@@ -109,16 +121,18 @@ export default function DropZone({ onFileSelect, appState }: DropZoneProps) {
         />
 
         <div className="flex flex-col items-center gap-3 pointer-events-none">
+          {/* Icon container */}
           <div
-            className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all duration-200 ${
+            className={[
+              'w-12 h-12 rounded-xl flex items-center justify-center transition-all duration-200',
               isDragging
-                ? 'bg-violet-500/20 shadow-lg shadow-violet-500/10'
-                : 'bg-zinc-800/80'
-            }`}
+                ? 'bg-violet-100 dark:bg-violet-500/20'
+                : 'bg-slate-100 dark:bg-zinc-800',
+            ].join(' ')}
           >
             <svg
               className={`w-6 h-6 transition-colors ${
-                isDragging ? 'text-violet-400' : 'text-zinc-500'
+                isDragging ? 'text-violet-500 dark:text-violet-400' : 'text-slate-400 dark:text-zinc-500'
               }`}
               fill="none"
               viewBox="0 0 24 24"
@@ -135,22 +149,20 @@ export default function DropZone({ onFileSelect, appState }: DropZoneProps) {
           </div>
 
           <div>
-            <p className="text-zinc-300 font-medium">
+            <p className="font-medium text-slate-700 dark:text-zinc-300">
               {isDragging ? 'Release to upload' : 'Drop your document here'}
             </p>
-            <p className="text-zinc-600 text-sm mt-0.5">
+            <p className="text-sm text-slate-400 dark:text-zinc-600 mt-0.5">
               or{' '}
-              <span className="text-violet-400">browse files</span>
+              <span className="text-violet-600 dark:text-violet-400">browse files</span>
             </p>
           </div>
 
-          <p className="text-zinc-700 text-xs">PDF or TXT · max 10 MB</p>
+          <p className="text-xs text-slate-300 dark:text-zinc-700">PDF or TXT · max 10 MB</p>
         </div>
       </div>
 
-      {dragError && (
-        <p className="text-red-400 text-xs px-1">{dragError}</p>
-      )}
+      {dragError && <p className="text-red-500 dark:text-red-400 text-xs px-1">{dragError}</p>}
     </div>
   );
 }
