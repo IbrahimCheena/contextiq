@@ -28,12 +28,14 @@ create table if not exists documents (
 --    If you already created the index on an empty table, drop it first:
 --      DROP INDEX IF EXISTS documents_embedding_idx;
 
--- 4. match_documents — semantic similarity search used in Phase 3.
---    Returns the top `match_count` chunks ordered by cosine similarity.
---    Similarity = 1 − cosine_distance, so 1.0 is identical, 0.0 is orthogonal.
+-- 4. match_documents — semantic similarity search.
+--    filter_filename scopes results to a single document, preventing chunks
+--    from other users' uploads from leaking into unrelated queries.
+--    When filter_filename is NULL the WHERE clause is a no-op (backwards-compatible).
 create or replace function match_documents(
   query_embedding vector(1536),
-  match_count     integer default 5
+  match_count     integer default 5,
+  filter_filename text    default null
 )
 returns table (
   id          uuid,
@@ -51,6 +53,7 @@ as $$
     content,
     1 - (embedding <=> query_embedding) as similarity
   from documents
+  where (filter_filename is null or filename = filter_filename)
   order by embedding <=> query_embedding
   limit match_count;
 $$;

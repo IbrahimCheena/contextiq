@@ -229,7 +229,9 @@ export default function ChatWindow({ isReady, filename }: ChatWindowProps) {
       const res = await fetch('/api/query', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ question }),
+        // filename scopes the search to this document only — prevents chunks
+        // from other users' uploads leaking into this session's answers.
+        body: JSON.stringify({ question, filename }),
       });
 
       if (!res.ok || !res.body) throw new Error(`HTTP ${res.status}`);

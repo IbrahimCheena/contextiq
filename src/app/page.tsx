@@ -48,7 +48,18 @@ export default function Home() {
     setAppState({ status: 'ready', filename: data.filename, totalChunks: data.totalChunks, error: null });
   }, []);
 
-  const handleReset = useCallback(() => setAppState(INITIAL_STATE), []);
+  const handleReset = useCallback(() => {
+    // Delete the current document's chunks from Supabase so stale data doesn't
+    // accumulate. Fire-and-forget — the UI resets immediately regardless.
+    if (appState.filename) {
+      fetch('/api/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ filename: appState.filename }),
+      }).catch((err) => console.error('[reset] delete failed:', err));
+    }
+    setAppState(INITIAL_STATE);
+  }, [appState.filename]);
 
   return (
     <main className="h-screen flex flex-col overflow-hidden bg-slate-50 dark:bg-zinc-950 text-slate-900 dark:text-zinc-100">
